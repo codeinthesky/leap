@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Leap JavaScript API</title>
+<script>
+var ws;
+    
+if ((typeof(WebSocket) == 'undefined') &&
+    (typeof(MozWebSocket) != 'undefined')) {
+  WebSocket = MozWebSocket;
+}
+    
+
+function init() {
+  ws = new WebSocket("ws://localhost:6437/");
+  ws.onopen = function(event) {
+    document.getElementById("main").style.visibility = "visible";
+    document.getElementById("connection").innerHTML = "WebSocket connection open!";
+  };
+    
+    
+  var actionStartTime = new Date().getTime();
+  var timeThreshold = 300;
+    
+  // is gun ready to be fired?
+  var cocked;
+
+  // co-ordinate corrections for converting tip positon to canvas position
+  // where canvas top left corner is at (0,0)
+  // finger tip position at left of range of motion is approx -230
+  // finger tip position at right of range of motion is approx +230
+  var XCORRECTION = 230;  // to be added to tip x position (position[0])
+  // tip position at top of range of motion is approx 480
+  // tip position at bottom of range of motion is approx 80
+  var YCORRECTION = 480;  // to be substracted from tip y position (position[1])
+    
+    
+    
+  ws.onmessage = function(event) {
+    var obj = JSON.parse(event.data);
+    var str = JSON.stringify(obj, undefined, 2);
+      
+    var posX = XCORRECTION + Math.floor( obj.hands[0].fingers[0].tip.position[0]);
+    var posY = YCORRECTION - Math.floor( obj.hands[0].fingers[0].tip.position[1]);
+    document.getElementById("output").innerHTML = '<pre>' + "posX:"+ posX + " posY:" + posY+ '</pre>';
+
+      
+    // gun fires when finger count goes from cocked position (2 fingers) to 1 finger.
+    var fingercount = obj.hands[0].fingers.length;        
+    if (fingercount == 2) {
+      cocked = 1; // 1 == true
+    } else if (fingercount == 1) {
+      if (cocked) {
+          // shot fired!
+          console.log("shot fired at", posX, posY);
+      }
+      cocked = 0; // 0 == false
+    } else {
+      cocked = 0; // 0 == false
+    }
+  };
+    
+  ws.onclose = function(event) {
+    ws = null;
+    document.getElementById("main").style.visibility = "hidden";
+    document.getElementById("connection").innerHTML = "WebSocket connection closed";
+  };
+  ws.onerror = function(event) {
+    alert("Received error");
+  };
+}
+</script>
+</head>
+<body onload="init();">
+<h1>Leap JavaScript API</h1>
+<div id="connection">WebSocket not connected</div>
+<div id="main" style="visibility:hidden">
+  <p>Frame data:</p>
+  <div id="output"></div>
+</div>
+</body>
+</html>
+
